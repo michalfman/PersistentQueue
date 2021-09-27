@@ -14,36 +14,33 @@
 
 std::ofstream file;
 
-void FLUSH(void *p)
-{
+void FLUSH(void *p) {
     asm volatile ("clflush (%0)" :: "r"(p));
 }
 
-void FLUSH(volatile void *p)
-{   
+void FLUSH(volatile void *p) {   
     asm volatile ("clflush (%0)" :: "r"(p));
 }
 
-void SFENCE()
-{
+void SFENCE() {
     asm volatile ("sfence" ::: "memory");
 }
 
-void BARRIER(void* p){
+void BARRIER(void* p) {
 	FLUSH(p);
 	SFENCE();
 }
 
-void BARRIER(volatile void* p){
+void BARRIER(volatile void* p) {
 	FLUSH(p);
 	SFENCE();
 }
 
-void BARRIER_OPT(void* p){
+void BARRIER_OPT(void* p) {
 	FLUSH(p);
 }
 
-void BARRIER_OPT(volatile void* p){
+void BARRIER_OPT(volatile void* p) {
 	FLUSH(p);
 }
 
