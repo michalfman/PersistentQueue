@@ -15,25 +15,25 @@
 template <class T> class LogQueue {
   public:
 
-	class NodeWithLog;
-	class LogEntry;
+    class NodeWithLog;
+    class LogEntry;
 
-	// Indicated which operation the user is trying to execute.
-	enum Action {none, insert, remove};
+    // Indicated which operation the user is trying to execute.
+    enum Action {none, insert, remove};
 
-	//=======================Start NodeWithLog Class=========================//
-	/* NodeWithLog is the type of the elements that will be in the queue.
-	 * It contains the following fields:
-	 * value     - can be of any type. It holds the data of the element.
-	 * next      - a pointer to the next element in the queue.
-	 * logEnq    - a pointer to a LogEntry that holds the log of the insertion
-	 * 			   of that specific node.
-	 * logDeq    - a pointer to a LogEntry that holds the log of the removal
-	 * 			   of that specific node (if exists).
-	 */
-	class NodeWithLog {
-	  public:
-		T value;
+    //=======================Start NodeWithLog Class=========================//
+    /* NodeWithLog is the type of the elements that will be in the queue.
+     * It contains the following fields:
+     * value     - can be of any type. It holds the data of the element.
+     * next      - a pointer to the next element in the queue.
+     * logEnq    - a pointer to a LogEntry that holds the log of the insertion
+     * 	           of that specific node.
+     * logDeq    - a pointer to a LogEntry that holds the log of the removal
+     * 		   of that specific node (if exists).
+     */
+    class NodeWithLog {
+      public:
+	T value;
         std::atomic<NodeWithLog*> next;
         std::atomic<LogEntry*> logEnq;
         std::atomic<LogEntry*> logDeq;
@@ -41,39 +41,39 @@ template <class T> class LogQueue {
                              logDeq(nullptr), value(val) {}
         NodeWithLog() : next(nullptr), logEnq(nullptr),
                         logDeq(nullptr), value(T()) {}
-	};
-	//=========================End NodeWithLog Class=========================//
+    };
+    //=========================End NodeWithLog Class=========================//
 
-	//=========================Start LogEntry Class==========================//
-	/* LogEntry is the type of the elements that will be in the logs array.
-	 * This entry represents an operation. It contains the following fields:
-	 * operationNum - The number of the operation that is given by the user.
-	 * 				  Helps to track which operations were executed.
-	 * action       - The operation that was asked by the user - insert/remove.
-	 * status       - updated ONLY if the queue is empty and the thread wants
-	 * 				  to remove a node from an empty queue. Updated a moment
-	 * 				  before the thread returns.
-	 * logEnq       - a pointer to a LogEntry that holds the log of the
-	 *  			  insertion of that specific node.
-	 * logEnq       - a pointer to a LogEntry that holds the log of the removal
-	 * 			      of that specific node (if exists).
-	 */
-	class LogEntry {
-	  public:
-		int operationNum;
-		Action action;
-		bool status;
+    //=========================Start LogEntry Class==========================//
+    /* LogEntry is the type of the elements that will be in the logs array.
+     * This entry represents an operation. It contains the following fields:
+     * operationNum - The number of the operation that is given by the user.
+     * 		      Helps to track which operations were executed.
+     * action       - The operation that was asked by the user - insert/remove.
+     * status       - updated ONLY if the queue is empty and the thread wants
+     * 		      to remove a node from an empty queue. Updated a moment
+     * 		      before the thread returns.
+     * logEnq       - a pointer to a LogEntry that holds the log of the
+     *  	      insertion of that specific node.
+     * logEnq       - a pointer to a LogEntry that holds the log of the removal
+     * 		      of that specific node (if exists).
+     */
+    class LogEntry {
+      public:
+	int operationNum;
+	Action action;
+	bool status;
         NodeWithLog* node;
-		LogEntry(): operationNum(-1), action(none), status(false),
-				    node(NULL) {}
-		LogEntry(bool s, NodeWithLog* n, Action a, int operationNumber):
-				operationNum(operationNumber), action(a), status(s),
-				node(n) {}
-	};
-	//==========================End LogEntry Class===========================//
+	LogEntry(): operationNum(-1), action(none), status(false),
+		    node(NULL) {}
+	LogEntry(bool s, NodeWithLog* n, Action a, int operationNumber):
+		operationNum(operationNumber), action(a), status(s),
+		node(n) {}
+    };
+    //==========================End LogEntry Class===========================//
 
-	// The LogEntry array. Each thread has an entrance where is saves the last
-	// operation that was asked by the user.
+    // The LogEntry array. Each thread has an entrance where is saves the last
+    // operation that was asked by the user.
     LogEntry* logs[MAX_THREADS * PADDING];
 
     /* The constructor of the queue. Makes the head and tail point to a durable
@@ -81,16 +81,16 @@ template <class T> class LogQueue {
      * well.
      */
     LogQueue() {
-		NodeWithLog* dummy = new NodeWithLog(INT_MAX);
-		BARRIER(dummy);  // Flush the dummy node before connecting it
-		head = tail = dummy;
-		BARRIER(&head);
-		BARRIER(&tail);
-		for (int i = 0; i < MAX_THREADS; i++) {
-			logs[i * PADDING] = nullptr;
-			BARRIER(&logs[i * PADDING]);
-		}
+	NodeWithLog* dummy = new NodeWithLog(INT_MAX);
+	BARRIER(dummy);  // Flush the dummy node before connecting it
+	head = tail = dummy;
+	BARRIER(&head);
+	BARRIER(&tail);
+	for (int i = 0; i < MAX_THREADS; i++) {
+	    logs[i * PADDING] = nullptr;
+	    BARRIER(&logs[i * PADDING]);
 	}
+    }
     //-------------------------------------------------------------------------
     
     void initialize(){
@@ -101,67 +101,67 @@ template <class T> class LogQueue {
     //-------------------------------------------------------------------------
 
     /* Enqueues a node to the queue with the given value. */
-	void enq(T value, int threadID, int operationNumber) {
-	    NodeWithLog* node = createEnqLogAndNode(value, threadID,
-                                                    operationNumber);
-	    while (true) {
-      		NodeWithLog* last = tail.load();
-       		NodeWithLog* next = last->next.load();
-		if (last == tail.load()) {
-		    if (next == nullptr) {
-                   	// Try to insert.
-                    	if (last->next.compare_exchange_strong(next, node)) {
-                            BARRIER_OPT(&last->next);
-                            tail.compare_exchange_strong(last, node);
-        		    return;
-			}
-		    } else {  // If next is a node, help concurrent operation
+    void enq(T value, int threadID, int operationNumber) {
+	NodeWithLog* node = createEnqLogAndNode(value, threadID,
+                                                operationNumber);
+	while (true) {
+      	    NodeWithLog* last = tail.load();
+       	    NodeWithLog* next = last->next.load();
+	    if (last == tail.load()) {
+		if (next == nullptr) {
+                    // Try to insert.
+                    if (last->next.compare_exchange_strong(next, node)) {
                         BARRIER_OPT(&last->next);
-                        tail.compare_exchange_strong(last, next);
-                    }
-	        }
+                        tail.compare_exchange_strong(last, node);
+        		return;
+		    }
+		} else {  // If next is a node, help concurrent operation
+                    BARRIER_OPT(&last->next);
+                    tail.compare_exchange_strong(last, next);
+                }
 	    }
 	}
+    }
     //-------------------------------------------------------------------------
 
     /* Tries to dequeue a node. Returns the value of the removed node. If the
      * queue is empty, it returns INT_MIN which symbols an empty queue.
      */
-	T deq(int threadID, int operationNumber) {
-	    LogEntry* log = createDeqLog(threadID, operationNumber);
-	    while (true) {
-                NodeWithLog* first = head.load();
-                NodeWithLog* last = tail.load();
-                NodeWithLog* next = first->next.load();
-	        if (first == head.load()) {
-		    if (first == last) {
-		        if (next == nullptr) {
-			    logs[threadID * PADDING]->status = true;
-                            BARRIER(&(logs[threadID * PADDING]->status));
-                            return INT_MIN;
-		        }
-                        BARRIER_OPT(&last->next);
-                        tail.compare_exchange_strong(last, next);
-                    } else {
-		        LogEntry* valid = nullptr;
-		        if (next->logDeq.compare_exchange_strong(valid, log)) {
-			    BARRIER(&next->logDeq);
-			    next->logDeq.load()->node = next;  // Connect
-                            BARRIER_OPT(&next->logDeq.load()->node); // log to removed node
-                            head.compare_exchange_strong(first, next); // Update head
-			    return next->value;
-		        } else {  // Finish the other thread's operation
-			    if (head.load() == first){  // Important! Same context!
-  			        // Update and flush the relevant node in the log
-	 		        next->logDeq.load()->node = next;
-                                BARRIER_OPT(&next->logDeq.load()->node);
-                                head.compare_exchange_strong(first, next);
-			    }
-		        }
+    T deq(int threadID, int operationNumber) {
+        LogEntry* log = createDeqLog(threadID, operationNumber);
+	while (true) {
+            NodeWithLog* first = head.load();
+            NodeWithLog* last = tail.load();
+            NodeWithLog* next = first->next.load();
+	    if (first == head.load()) {
+	        if (first == last) {
+	            if (next == nullptr) {
+			logs[threadID * PADDING]->status = true;
+                        BARRIER(&(logs[threadID * PADDING]->status));
+                        return INT_MIN;
 		    }
-	        }
+                    BARRIER_OPT(&last->next);
+                    tail.compare_exchange_strong(last, next);
+                } else {
+	            LogEntry* valid = nullptr;
+	            if (next->logDeq.compare_exchange_strong(valid, log)) {
+		        BARRIER(&next->logDeq);
+	                next->logDeq.load()->node = next;  // Connect
+                        BARRIER_OPT(&next->logDeq.load()->node); // log to removed node
+                        head.compare_exchange_strong(first, next); // Update head
+		        return next->value;
+		    } else {  // Finish the other thread's operation
+		        if (head.load() == first){  // Important! Same context!
+  		            // Update and flush the relevant node in the log
+	     	            next->logDeq.load()->node = next;
+                            BARRIER_OPT(&next->logDeq.load()->node);
+                            head.compare_exchange_strong(first, next);
+			}
+		    }
+		}
 	    }
 	}
+    }
     //-------------------------------------------------------------------------
     
     /* Tries to finish all the detectable operations from before the last
@@ -342,43 +342,41 @@ template <class T> class LogQueue {
 private:
 
     std::atomic<NodeWithLog*> head;
-	int padding[PADDING];
+    int padding[PADDING];
     std::atomic<NodeWithLog*> tail;
 
 
-	/* Creates a log object for the remove operation and connects it to the
-	 * array in the relevant entry according to the thread id. */
-	LogEntry* createDeqLog(int threadID, int operationNumber) {
+    /* Creates a log object for the remove operation and connects it to the
+     * array in the relevant entry according to the thread id. */
+    LogEntry* createDeqLog(int threadID, int operationNumber) {
+	LogEntry* log = new LogEntry(false, nullptr, remove, operationNumber);
+	BARRIER(log);
 
-		LogEntry* log = new LogEntry(false, nullptr, remove, operationNumber);
-		BARRIER(log);
-
-		logs[threadID * PADDING] = log;  // Connect the log to its entry
-		BARRIER(&logs[threadID * PADDING]);
-		return log;
-	}
+	logs[threadID * PADDING] = log;  // Connect the log to its entry
+	BARRIER(&logs[threadID * PADDING]);
+	return log;
+    }
     //-------------------------------------------------------------------------
 
-	/* Creates a log object for the insert operation and connects it to the
-	 * array at the relevant entry according to the thread id. It connects
-	 * the log entry to the new node. */
-	NodeWithLog* createEnqLogAndNode(T value, int threadID,
-                                     int operationNumber) {
-		LogEntry* log = new LogEntry(false, nullptr, insert, operationNumber);
-		NodeWithLog* node = new NodeWithLog(value);
+    /* Creates a log object for the insert operation and connects it to the
+     * array at the relevant entry according to the thread id. It connects
+     * the log entry to the new node. */
+    NodeWithLog* createEnqLogAndNode(T value, int threadID, int operationNumber) {
+        LogEntry* log = new LogEntry(false, nullptr, insert, operationNumber);
+	NodeWithLog* node = new NodeWithLog(value);
 
-		log->node = node;  // Connect log to node
-		node->logEnq = log;  // Connect node to log
+	log->node = node;  // Connect log to node
+	node->logEnq = log;  // Connect node to log
         BARRIER_OPT(node);  // Flush node's and log's contents
-		BARRIER(log);
+	BARRIER(log);
 
-		logs[threadID * PADDING] = log;  // Connect log to the thread's entry
-		BARRIER(&logs[threadID * PADDING]);  // Flush the entry content
+	logs[threadID * PADDING] = log;  // Connect log to the thread's entry
+	BARRIER(&logs[threadID * PADDING]);  // Flush the entry content
 
-		return node;
-	}
+	return node;
+    }
 };
 
 
-#endif /* LOCK_FREE_QUEUE_LOG_H_ */
+#endif /* LOG_QUEUE_H_ */
 
