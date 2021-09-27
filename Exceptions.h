@@ -10,8 +10,7 @@ using namespace std;
 
 class EmptyException : public exception
 {
-  const char * what () const throw ()
-  {
+  const char * what () const throw () {
     return "Empty Exception";
   }
 };
